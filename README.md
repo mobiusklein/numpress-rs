@@ -1,6 +1,9 @@
 numpress
 ========
 
+[![Build Status](https://api.travis-ci.org/Alexhuszagh/numpress.svg?branch=master)](https://travis-ci.org/Alexhuszagh/numpress)
+[![Latest Version](https://img.shields.io/crates/v/numpress.svg)](https://crates.io/crates/numpress)
+
 A pure rust implementation of [ms-numpress](https://github.com/ms-numpress/ms-numpress), a fast, minimally lossy compression algorithm for mass spectrometry data.
 
 # Getting Started
