@@ -6,7 +6,7 @@ keywords = ["biology", "mass_spectrometry", "proteomics", "compression"]
 license = "BSD-3-Clause-Clear/Apache-2.0"
 name = "numpress"
 readme = "README.md"
-version = "1.0.0"
+version = "1.0.1"
 
 [dev-dependencies]
 assert_approx_eq = "1"

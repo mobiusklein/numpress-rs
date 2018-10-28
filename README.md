@@ -16,6 +16,8 @@ let decompressed: Vec<f64> = numpress_decompress(&compressed)?;
 
 # Documentation
 
+Numpress's documentation can be found on [docs.rs](https://docs.rs/numpress).
+
 # Dependency
 
 Numpress is available on crates.io. Use the following in Cargo.toml:
