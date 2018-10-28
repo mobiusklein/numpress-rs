@@ -1,0 +1,12 @@
+[package]
+authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
+categories = ["biology", "mass spectrometry", "proteomics", "compression"]
+keywords = ["biology", "mass spectrometry", "proteomics", "compression"]
+license = "BSD-3/Apache-2.0"
+name = "numpress"
+readme = "README.md"
+version = "1.0.0"
+
+[dev-dependencies]
+assert_approx_eq = "1"
+rand = "0.5"
