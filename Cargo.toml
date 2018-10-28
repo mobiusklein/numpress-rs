@@ -1,6 +1,6 @@
 [package]
 authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
-categories = ["biology", "mass_spectrometry", "proteomics", "compression"]
+categories = ["science", "compression"]
 description = "A pure rust implementation of ms-numpress, a fast, minimally lossy compression algorithm for mass spectrometry data."
 keywords = ["biology", "mass_spectrometry", "proteomics", "compression"]
 license = "BSD-3-Clause-Clear/Apache-2.0"
