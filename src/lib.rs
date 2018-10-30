@@ -10,21 +10,101 @@
 //!
 //! [`ms-numpress`]: https://github.com/ms-numpress/ms-numpress
 
-use std::error::Error as StdError;
-use std::fmt;
-use std::result::Result as StdResult;
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(core_intrinsics))]
+#![cfg_attr(feature = "alloc", feature(alloc))]
+
+#[cfg(all(test, feature = "alloc", not(feature = "std")))]
+#[macro_use]
+extern crate alloc;
+
+#[cfg(all(not(test), feature = "alloc", not(feature = "std")))]
+extern crate alloc;
+
+#[cfg(all(test, feature = "alloc", not(feature = "std")))]
+extern crate wee_alloc;
+
+// FEATURES
+
+/// Facade around the core features for name mangling.
+mod sealed {
+    #[cfg(not(feature = "std"))]
+    pub use core::*;
+
+    #[cfg(feature = "std")]
+    pub use std::*;
+}
+
+use sealed::fmt::{Display, Formatter, Result as FmtResult};
+use sealed::result::Result as StdResult;
+
+#[cfg(feature = "std")]
+use sealed::error::Error as StdError;
+
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+pub use alloc::vec::Vec;
 
 #[cfg(test)]
 extern crate rand;
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "std", feature = "alloc")))]
 #[macro_use]
 extern crate assert_approx_eq;
+
+// GLOBAL ALLOCATOR
+
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+// INTRINSICS
+
+/// `f64.abs()` feature for `no_std`
+#[cfg(not(feature = "std"))]
+#[inline(always)]
+fn abs(f: f64) -> f64 {
+    unsafe { core::intrinsics::fabsf64(f) }
+}
+
+/// `f64.ceil()` feature for `no_std`
+#[cfg(not(feature = "std"))]
+#[inline(always)]
+fn ceil(f: f64) -> f64 {
+    unsafe { core::intrinsics::ceilf64(f) }
+}
+
+/// `f64.floor()` feature for `no_std`
+#[cfg(not(feature = "std"))]
+#[inline(always)]
+fn floor(f: f64) -> f64 {
+    unsafe { core::intrinsics::floorf64(f) }
+}
+
+/// `f64.abs()` feature for `std`
+#[cfg(feature = "std")]
+#[inline(always)]
+fn abs(f: f64) -> f64 {
+    f.abs()
+}
+
+/// `f64.ceil()` feature for `std`
+#[cfg(feature = "std")]
+#[inline(always)]
+fn ceil(f: f64) -> f64 {
+    f.ceil()
+}
+
+/// `f64.floor()` feature for `std`
+#[cfg(feature = "std")]
+#[inline(always)]
+fn floor(f: f64) -> f64 {
+    f.floor()
+}
 
 // ERROR
 
 /// Type of error encountered during compression or decompression.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ErrorKind {
     /// Encoding or decoding fails due to corrupt input data.
     CorruptInputData,
@@ -35,7 +115,7 @@ pub enum ErrorKind {
 }
 
 /// Custom error for Numpress compression.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Error(ErrorKind);
 
 impl From<ErrorKind> for Error {
@@ -44,26 +124,37 @@ impl From<ErrorKind> for Error {
     }
 }
 
+/// Implied method to generate the description.
+macro_rules! description_impl {
+    ($kind:expr) => (match $kind {
+        ErrorKind::CorruptInputData => "corrupt input data.",
+        ErrorKind::OverflowError => "next number overflows.",
+        ErrorKind::OutOfRange => "cannot encode number outside of [i32::min_value(), i32::max_value()].",
+    })
+}
+
 impl Error {
     /// Get error type.
     pub fn kind(&self) -> &ErrorKind {
         &self.0
     }
+
+    #[cfg(not(feature = "std"))]
+    fn description(&self) -> &'static str {
+        description_impl!(self.kind())
+    }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "Numpress error: {}", self.description())
     }
 }
 
+#[cfg(feature = "std")]
 impl StdError for Error {
-    fn description(&self) -> &str {
-        match self.kind() {
-            ErrorKind::CorruptInputData => "corrupt input data.",
-            ErrorKind::OverflowError => "next number overflows.",
-            ErrorKind::OutOfRange => "cannot encode number outside of [i32::min_value(), i32::max_value()].",
-        }
+    fn description(&self) -> &'static str {
+        description_impl!(self.kind())
     }
 
     fn cause(&self) -> Option<&StdError> {
@@ -76,8 +167,8 @@ pub type Result<T> = StdResult<T, Error>;
 
 pub mod low_level {
 
-use std::mem::{uninitialized, transmute};
-use super::{ErrorKind, Result};
+use sealed::mem::{uninitialized, transmute};
+use super::{abs, ceil, ErrorKind, floor, Result};
 
 // FIXED POINT
 
@@ -466,7 +557,7 @@ pub unsafe extern "C" fn optimal_linear_scaling(
     match data_size {
         0 => 0.,
         // 2147483647.0 == 0x7FFFFFFFl
-        1 => (2147483647.0 / *data).floor(),
+        1 => floor(2147483647.0 / *data),
         _ => {
             let d0: f64 = *data;
             let d1: f64 = *data.add(1);
@@ -480,11 +571,11 @@ pub unsafe extern "C" fn optimal_linear_scaling(
                 let di_2: f64 = *data.add(i-2);
                 extrapol = di_1 + (di_1 - di_2);
                 diff = di - extrapol;
-                let maxi = (diff.abs()+1.0).ceil();
+                let maxi = ceil(abs(diff)+1.0);
                 max_double = max!(max_double, maxi);
             }
             // 2147483647.0 == 0x7FFFFFFFl
-            (2147483647.0 / max_double).floor()
+            floor(2147483647.0 / max_double)
         }
     }
 }
@@ -506,6 +597,7 @@ pub const DEFAULT_SCALING: f64 = 10000.0;
 ///
 /// [`DEFAULT_SCALING`]: constant.DEFAULT_SCALING.html
 /// [`optimal_scaling`]: fn.optimal_scaling.html
+#[cfg(any(feature = "std", feature = "alloc"))]
 pub fn numpress_compress(data: &[f64], scaling: f64)
     -> Result<Vec<u8>>
 {
@@ -525,6 +617,7 @@ pub fn numpress_compress(data: &[f64], scaling: f64)
 /// High-level decompressor for Numpress.
 ///
 /// * `data`    - Slice of encoded doubles as bytes.
+#[cfg(any(feature = "std", feature = "alloc"))]
 pub fn numpress_decompress(data: &[u8])
     -> Result<Vec<f64>>
 {
@@ -555,12 +648,21 @@ pub fn optimal_scaling(data: &[f64])
 
 #[cfg(test)]
 mod tests {
-    use rand::{thread_rng, Rng};
-    use rand::distributions::Uniform;
-    use std::alloc::{alloc, dealloc, Layout};
-    use std::mem::{align_of, size_of, uninitialized};
+    use sealed::mem;
     use super::*;
 
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    use rand::{thread_rng, Rng};
+
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    use rand::distributions::Uniform;
+
+    #[cfg(feature = "std")]
+    use std::alloc::{alloc, dealloc, Layout};
+
+    // HELPERS
+
+    #[cfg(any(feature = "std", feature = "alloc"))]
     macro_rules! assert_approx_list_eq {
         ($a:expr, $b:expr) => {
             assert_eq!($a.len(), $b.len());
@@ -584,22 +686,23 @@ mod tests {
     fn fixed_point_test() {
         unsafe {
             let x: f64 = 32.5;
-            let mut xi: [u8; 8] = uninitialized();
+            let mut xi: [u8; 8] = mem::uninitialized();
             low_level::encode_fixed_point(x, xi.as_mut_ptr());
             assert_eq!(low_level::decode_fixed_point(xi.as_ptr()), x);
 
             let y: f64 = 1.2e-64;
-            let mut yi: [u8; 8] = uninitialized();
+            let mut yi: [u8; 8] = mem::uninitialized();
             low_level::encode_fixed_point(y, yi.as_mut_ptr());
             assert_eq!(low_level::decode_fixed_point(yi.as_ptr()), y);
         }
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn fixed_point_heap_test() {
         unsafe {
-            const SIZE: usize = size_of::<u8>() * 8;
-            const ALIGN: usize = align_of::<u8>();
+            const SIZE: usize = mem::size_of::<u8>() * 8;
+            const ALIGN: usize = mem::align_of::<u8>();
             let layout = Layout::from_size_align_unchecked(SIZE, ALIGN);
 
             let x: f64 = 32.5;
@@ -614,6 +717,7 @@ mod tests {
     // API
 
     #[test]
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn compress_test() {
         // Check value compression with default scaling.
         let decoded: Vec<f64> = vec![100., 101., 102., 103.];
@@ -634,6 +738,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn decompress_test() {
         // Check value decompression.
         let encoded: [u8; 17] = [64, 195, 136, 0, 0, 0, 0, 0, 64, 66, 15, 0, 80, 105, 15, 0, 136];
@@ -657,6 +762,7 @@ mod tests {
 
     #[test]
     #[ignore]
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn fuzz_test() {
         // fuzz with random integers to ensure minimal loss and no memory corruption
         let mut rng = thread_rng();
