@@ -32,7 +32,7 @@ numpress = "1.0"
 
 # License
 
-Like the original ms-numpress implementation, this code is open source. It is dual licenced under the Apache 2.0 license as well as the 3-clause BSD licence. See the LICENCE-BSD and the LICENCE-APACHE file for the licences.
+Like the original [ms-numpress](https://github.com/ms-numpress/ms-numpress) implementation, this code is open source. It is dual licensed under the Apache 2.0 license as well as the 3-clause BSD license. See the LICENCE-BSD and the LICENCE-APACHE files for the licenses.
 
 # Contributing
 
