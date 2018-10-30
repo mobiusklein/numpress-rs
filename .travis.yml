@@ -12,7 +12,7 @@ matrix:
         - cargo test
         - cargo test --no-default-features
         - cargo test --no-default-features --features=alloc
-        - cargo test --no-default-features --features=alloc -- --ignored
+        - cargo test --no-default-features --features=alloc --release -- --ignored
 
 script:
   - cargo build
