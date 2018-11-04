@@ -8,14 +8,14 @@ license = "BSD-3-Clause-Clear/Apache-2.0"
 name = "numpress"
 readme = "README.md"
 repository = "https://github.com/AlexHuszagh/numpress"
-version = "1.0.7"
+version = "1.0.8"
 
 [dependencies]
 # Global allocator only used during testing.
 wee_alloc = { version = "0.4", optional = true }
 
 [dev-dependencies]
-assert_float_eq = "1"
+approx = "0.3.0"
 rand = "0.5"
 
 [badges]

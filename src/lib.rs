@@ -49,7 +49,7 @@ extern crate rand;
 
 #[cfg(all(test, any(feature = "std", feature = "alloc")))]
 #[macro_use]
-extern crate assert_float_eq;
+extern crate approx;
 
 // GLOBAL ALLOCATOR
 
@@ -663,19 +663,19 @@ mod tests {
     // HELPERS
 
     #[cfg(any(feature = "std", feature = "alloc"))]
-    macro_rules! assert_float_absolute_list_eq {
+    macro_rules! assert_abs_diff_list_eq {
         ($a:expr, $b:expr) => {
             assert_eq!($a.len(), $b.len());
             let mut iter = $a.iter().zip($b.iter());
             for (x, y) in iter {
-                assert_float_absolute_eq!(x, y);
+                assert_abs_diff_eq!(x, y);
             }
         };
         ($a:expr, $b:expr, $eps:expr) => {
             assert_eq!($a.len(), $b.len());
             let iter = $a.iter().zip($b.iter());
             for (x, y) in iter {
-                assert_float_absolute_eq!(x, y, $eps);
+                assert_abs_diff_eq!(x, y, epsilon=$eps);
             }
         };
     }
@@ -750,7 +750,7 @@ mod tests {
         let encoded: Vec<u8> = vec![64, 195, 136, 0, 0, 0, 0, 0, 208, 19, 72, 0, 6, 79, 221, 4, 25, 69, 167, 73, 152, 57, 23, 18, 155, 5, 49, 243, 0, 192, 7, 106, 16, 72, 240, 23, 174, 156, 9, 194, 234, 6, 200, 3, 9, 25, 137, 1, 126, 185, 240, 131, 198, 89, 96, 97, 11, 0];
         let decoded: Vec<f64> = vec![472.3664, 8161.255, 31419.1749, 31340.3708, 11031.9614, 35019.3536, 22837.8246, 2076.2264, 23277.5536, 37604.5792, 34185.8911, 5077.6548];
         let result = numpress_decompress(&encoded).unwrap();
-        assert_float_absolute_list_eq!(result, decoded, 0.001);
+        assert_abs_diff_list_eq!(result, decoded, 0.001);
     }
 
     #[test]
@@ -772,7 +772,7 @@ mod tests {
             let input: Vec<f64> = rng.sample_iter(&dist).take(length).collect();
             let encoded = numpress_compress(input.as_slice(), DEFAULT_SCALING).unwrap();
             let decoded = numpress_decompress(encoded.as_slice()).unwrap();
-            assert_float_absolute_list_eq!(input, decoded, 0.0001);
+            assert_abs_diff_list_eq!(input, decoded, 0.0001);
         }
     }
 }
