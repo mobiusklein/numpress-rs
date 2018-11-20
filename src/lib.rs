@@ -21,9 +21,6 @@ extern crate alloc;
 #[cfg(all(not(test), feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
-#[cfg(all(test, feature = "alloc", not(feature = "std")))]
-extern crate wee_alloc;
-
 // FEATURES
 
 /// Facade around the core features for name mangling.
@@ -50,12 +47,6 @@ extern crate rand;
 #[cfg(all(test, any(feature = "std", feature = "alloc")))]
 #[macro_use]
 extern crate approx;
-
-// GLOBAL ALLOCATOR
-
-#[cfg(all(test, feature = "alloc", not(feature = "std")))]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // INTRINSICS
 
