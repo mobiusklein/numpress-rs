@@ -53,7 +53,7 @@ extern crate approx;
 
 // GLOBAL ALLOCATOR
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(all(test, feature = "alloc", not(feature = "std")))]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
