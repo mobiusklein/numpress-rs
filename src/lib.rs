@@ -11,14 +11,12 @@
 //! [`ms-numpress`]: https://github.com/ms-numpress/ms-numpress
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(alloc))]
 #![cfg_attr(not(feature = "std"), feature(core_intrinsics))]
-#![cfg_attr(feature = "alloc", feature(alloc))]
 
-#[cfg(all(test, feature = "alloc", not(feature = "std")))]
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
 #[macro_use]
-extern crate alloc;
-
-#[cfg(all(not(test), feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
 // FEATURES
@@ -38,13 +36,13 @@ use sealed::result::Result as StdResult;
 #[cfg(feature = "std")]
 use sealed::error::Error as StdError;
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(not(feature = "std"))]
 pub use alloc::vec::Vec;
 
 #[cfg(test)]
 extern crate rand;
 
-#[cfg(all(test, any(feature = "std", feature = "alloc")))]
+#[cfg(test)]
 #[macro_use]
 extern crate approx;
 
@@ -588,7 +586,6 @@ pub const DEFAULT_SCALING: f64 = 10000.0;
 ///
 /// [`DEFAULT_SCALING`]: constant.DEFAULT_SCALING.html
 /// [`optimal_scaling`]: fn.optimal_scaling.html
-#[cfg(any(feature = "std", feature = "alloc"))]
 pub fn numpress_compress(data: &[f64], scaling: f64)
     -> Result<Vec<u8>>
 {
@@ -608,7 +605,6 @@ pub fn numpress_compress(data: &[f64], scaling: f64)
 /// High-level decompressor for Numpress.
 ///
 /// * `data`    - Slice of encoded doubles as bytes.
-#[cfg(any(feature = "std", feature = "alloc"))]
 pub fn numpress_decompress(data: &[u8])
     -> Result<Vec<f64>>
 {
@@ -642,10 +638,7 @@ mod tests {
     use sealed::mem;
     use super::*;
 
-    #[cfg(any(feature = "std", feature = "alloc"))]
     use rand::{thread_rng, Rng};
-
-    #[cfg(any(feature = "std", feature = "alloc"))]
     use rand::distributions::Uniform;
 
     #[cfg(feature = "std")]
@@ -653,7 +646,6 @@ mod tests {
 
     // HELPERS
 
-    #[cfg(any(feature = "std", feature = "alloc"))]
     macro_rules! assert_abs_diff_list_eq {
         ($a:expr, $b:expr) => {
             assert_eq!($a.len(), $b.len());
@@ -708,7 +700,6 @@ mod tests {
     // API
 
     #[test]
-    #[cfg(any(feature = "std", feature = "alloc"))]
     fn compress_test() {
         // Check value compression with default scaling.
         let decoded: Vec<f64> = vec![100., 101., 102., 103.];
@@ -729,7 +720,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(feature = "std", feature = "alloc"))]
     fn decompress_test() {
         // Check value decompression.
         let encoded: [u8; 17] = [64, 195, 136, 0, 0, 0, 0, 0, 64, 66, 15, 0, 80, 105, 15, 0, 136];
@@ -753,7 +743,6 @@ mod tests {
 
     #[test]
     #[ignore]
-    #[cfg(any(feature = "std", feature = "alloc"))]
     fn fuzz_test() {
         // fuzz with random integers to ensure minimal loss and no memory corruption
         let mut rng = thread_rng();
