@@ -316,7 +316,7 @@ pub(crate) unsafe extern "C" fn decode_int(
     }
 
     if *di + ((8 - n) - (1 - *half)) / 2 >= max_di {
-        return Err(From::from(ErrorKind::CorruptInputData));
+        return Err(ErrorKind::CorruptInputData.into());
     }
 
     for i in n..8 {
@@ -399,14 +399,14 @@ pub unsafe extern "C" fn encode_linear(
         ints[0] = ints[1];
         ints[1] = ints[2];
         if (*data.add(i) * scaling + 0.5) as i64 > i64::max_value() {
-            return Err(From::from(ErrorKind::OverflowError));
+            return Err(ErrorKind::OverflowError.into());
         }
 
         ints[2] = ((*data.add(i)) * scaling + 0.5) as i64;
         extrapol = ints[1] + (ints[1] - ints[0]);
 
         if (ints[2] - extrapol > I32_MAX) || (ints[2] - extrapol < I32_MIN) {
-            return Err(From::from(ErrorKind::OutOfRange));
+            return Err(ErrorKind::OutOfRange.into());
         }
 
         diff = (ints[2] - extrapol) as i32;
@@ -465,11 +465,11 @@ pub unsafe extern "C" fn decode_linear(
     }
 
     if data_size < 8 {
-        return Err(From::from(ErrorKind::CorruptInputData));
+        return Err(ErrorKind::CorruptInputData.into());
     }
 
     if data_size < 12 {
-        return Err(From::from(ErrorKind::CorruptInputData));
+        return Err(ErrorKind::CorruptInputData.into());
     }
 
     let scaling = decode_fixed_point(data);
@@ -489,7 +489,7 @@ pub unsafe extern "C" fn decode_linear(
     }
 
     if data_size < 16 {
-        return Err(From::from(ErrorKind::CorruptInputData));
+        return Err(ErrorKind::CorruptInputData.into());
     }
 
     ints[2] = 0;
