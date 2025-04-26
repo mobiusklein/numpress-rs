@@ -2,12 +2,12 @@
 authors = ["Alex Huszagh <ahuszagh@gmail.com>"]
 categories = ["science", "compression", "no-std"]
 description = "A pure rust implementation of ms-numpress, a fast, minimally lossy compression algorithm for mass spectrometry data."
-documentation = "https://docs.rs/numpress"
+documentation = "https://docs.rs/numpress-rs"
 keywords = ["biology", "mass_spectrometry", "proteomics", "compression"]
 license = "BSD-3-Clause-Clear/Apache-2.0"
-name = "numpress"
+name = "numpress-rs"
 readme = "README.md"
-repository = "https://github.com/AlexHuszagh/numpress"
+repository = "https://github.com/mobiusklein/numpress-rs"
 version = "1.1.0"
 
 edition = "2021"
@@ -21,5 +21,3 @@ rand = "0.5"
 default = ["std"]
 std = []
 
-[dependencies]
-num-traits = "0.2"

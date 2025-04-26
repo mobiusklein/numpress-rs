@@ -103,6 +103,29 @@ pub enum ErrorKind {
     OutOfRange,
 }
 
+pub trait AsFloat64: Copy {
+    fn as_(&self) -> f64;
+}
+
+
+macro_rules! impl_as_f64 {
+    ($tp:ty) => {
+        impl AsFloat64 for $tp {
+            fn as_(&self) -> f64 {
+                (*self) as f64
+            }
+        }
+    };
+}
+
+impl_as_f64!(f64);
+impl_as_f64!(f32);
+impl_as_f64!(i32);
+impl_as_f64!(i64);
+impl_as_f64!(u32);
+impl_as_f64!(u64);
+
+
 /// Custom error for Numpress compression.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Error(ErrorKind);
@@ -609,15 +632,86 @@ pub fn numpress_decompress(data: &[u8]) -> Result<Vec<f64>> {
     Ok(vec)
 }
 
-/// Calculate the optimal, most-compressed scaling factor for compression.
+
+/// High-level compressor for Numpress linear encoding.
 ///
-/// * `data`    - Slice of doubles to be encoded.
+/// **NOTE**: This compression method is intended for values stored in sorted order like
+/// m/z or retention time.
+///
+/// The recommended scaling factor is [`DEFAULT_SCALING`], and the optimal scaling
+/// factor can be calculated via [`optimal_scaling`].
+///
+/// # Arguments
+/// * `data`: Slice of doubles to be encoded.
+/// * `result`: The buffer to write the encoded bytes to.
+/// * `scaling`: Scaling factor used for getting the fixed point representation,
+///              calculated from [`optimal_scaling`].
+///
+/// # Returns
+/// The number of bytes encoded
+pub fn encode_linear(
+    data: &[f64],
+    result: &mut Vec<u8>,
+    scaling: f64,
+) -> Result<usize> {
+    let required_capacity = data.len() * 5 + 8;
+    let missing_capacity = required_capacity.saturating_sub(result.capacity());
+    if missing_capacity > 0 {
+        result.reserve(missing_capacity);
+    }
+    unsafe {
+        let src: *const f64 = data.as_ptr();
+        let dst: *mut u8 = result.as_mut_ptr();
+        let length = low_level::encode_linear(src, data.len(), dst, scaling)?;
+        result.set_len(length);
+        result.shrink_to_fit();
+        Ok(length)
+    }
+}
+
+/// The decoder for Numpress linear encoding compression, e.g. [`encode_linear`]
+///
+/// # Arguments
+/// * `data`: The encoded byte array
+/// * `result`: The buffer to write the decoded data to
+///
+/// # Returns
+/// The number of values decoded
+pub fn decode_linear(
+    data: &[u8],
+    result: &mut Vec<f64>,
+) -> Result<usize> {
+    let required_capacity = (data.len() - 8) * 2;
+    let missing_capacity = required_capacity.saturating_sub(result.capacity());
+    if missing_capacity > 0 {
+        result.reserve(missing_capacity);
+    }
+
+    unsafe {
+        let src: *const u8 = data.as_ptr();
+        let dst: *mut f64 = result.as_mut_ptr();
+        let length = low_level::decode_linear(src, data.len(), dst)?;
+        result.set_len(length);
+        result.shrink_to_fit();
+        Ok(length)
+    }
+}
+
+
+/// Calculate the optimal, most-compressed scaling factor for linear encoding compression.
+///
+/// # Arguments
+/// * `data`: Slice of doubles to be encoded.
 pub fn optimal_scaling(data: &[f64]) -> f64 {
     unsafe { low_level::optimal_linear_scaling(data.as_ptr(), data.len()) }
 }
 
+/// Calculate the optimal, most-compressed scaling factor for short logged float (Slof) encoding compression.
+///
+/// # Arguments
+/// * `data`: Slice of floating point values to be encoded.
 #[inline(always)]
-pub fn optimal_slof_fixed_point<T: num_traits::AsPrimitive<f64>>(data: &[T]) -> f64 {
+pub fn optimal_slof_fixed_point<T: AsFloat64>(data: &[T]) -> f64 {
     let max = data.iter().fold(1.0f64, |max, val| {
         let x = (val.as_() + 1.0).ln();
         max.max(x)
@@ -627,7 +721,20 @@ pub fn optimal_slof_fixed_point<T: num_traits::AsPrimitive<f64>>(data: &[T]) -> 
     return fp;
 }
 
-pub fn encode_slof<T: num_traits::AsPrimitive<f64>>(
+
+/// High-level compressor for Numpress short logged float encoding.
+///
+/// **NOTE**: This compression method is appropriate for intensity and other
+/// floating point values that do not have an ordered pattern to follow.
+///
+/// # Arguments
+/// * `data`: Slice of doubles to be encoded.
+/// * `result`: The buffer to write the encoded bytes to.
+/// * `fixed_point`: Scaling factor used for getting the fixed point representation, calculated with [`optimal_slof_fixed_point`].
+///
+/// # Returns
+/// The number of bytes encoded
+pub fn encode_slof<T: AsFloat64>(
     data: &[T],
     result: &mut Vec<u8>,
     fixed_point: f64,
@@ -644,7 +751,7 @@ pub fn encode_slof<T: num_traits::AsPrimitive<f64>>(
     };
 
     for val in data {
-        let x = ((val.as_() + 1.0).ln() * fixed_point + 0.5) as u16;
+        let x: u16 = ((val.as_() + 1.0).ln() * fixed_point + 0.5) as u16;
         result.push((x & 0xFF) as u8);
         result.push((x >> 8) as u8);
     }
@@ -652,6 +759,15 @@ pub fn encode_slof<T: num_traits::AsPrimitive<f64>>(
     Ok(0)
 }
 
+
+/// The decoder for Numpress short logged float encoding compression, e.g. [`encode_slof`]
+///
+/// # Arguments
+/// * `data`: The encoded byte array
+/// * `result`: The buffer to write the decoded data to
+///
+/// # Returns
+/// The number of values decoded
 pub fn decode_slof(data: &[u8], result: &mut Vec<f64>) -> Result<usize> {
     let data_size = data.len();
     // safety checks
@@ -681,7 +797,21 @@ pub fn decode_slof(data: &[u8], result: &mut Vec<f64>) -> Result<usize> {
     Ok(i)
 }
 
-pub fn encode_pic<T: num_traits::AsPrimitive<f64>>(
+
+/// High-level compressor for Numpress positive integer encoding.
+///
+/// **NOTE**: This compression method is appropriate for intensity and other
+/// floating point values that do not have an ordered pattern to follow. It removes
+/// the non-integral component of the value, which may make this too imprecise for
+/// coordinate data.
+///
+/// # Arguments
+/// * `data`: Slice of doubles to be encoded.
+/// * `result`: The buffer to write the encoded bytes to.
+///
+/// # Returns
+/// The number of bytes encoded
+pub fn encode_pic<T: AsFloat64>(
     data: &[T],
     result: &mut Vec<u8>,
 ) -> Result<usize> {
@@ -723,6 +853,15 @@ pub fn encode_pic<T: num_traits::AsPrimitive<f64>>(
     Ok(data.len())
 }
 
+
+/// The decoder for Numpress positive integer encoding compression, e.g. [`encode_pic`]
+///
+/// # Arguments
+/// * `data`: The encoded byte array
+/// * `result`: The buffer to write the decoded data to
+///
+/// # Returns
+/// The number of values decoded
 pub fn decode_pic(data: &[u8], result: &mut Vec<f64>) -> Result<usize> {
     let data_size = data.len();
 
@@ -980,7 +1119,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_pic() {
         let dat = [
             472.36640759869624,
