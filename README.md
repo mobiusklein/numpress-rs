@@ -4,7 +4,8 @@ numpress-rs
 A pure rust implementation of [ms-numpress](https://github.com/ms-numpress/ms-numpress), a fast, minimally lossy compression algorithm for mass spectrometry data.
 
 **Note**: This is a fork of https://github.com/Alexhuszagh/numpress, which only supported the linear encoding algorithm. This fork implements the short logged float
-encoding and positive integer encoding as well. It focuses on a Rust API, eschewing the original `no_std`/`extern "C"` interface.
+encoding and positive integer encoding as well. It focuses on a Rust API, and removes parts of the original `no_std`/`extern "C"` interface due to changes in FFI safety
+recommendations that no longer hold.
 
 # Getting Started
 
@@ -19,7 +20,7 @@ let decompressed: Vec<f64> = numpress_decompress(&compressed)?;
 
 # Documentation
 
-Numpress's documentation can be found on [docs.rs](https://docs.rs/numpress).
+Numpress's documentation can be found on [docs.rs](https://docs.rs/numpress-rs).
 
 # Dependency
 
@@ -27,7 +28,7 @@ Numpress is available on crates.io. Use the following in Cargo.toml:
 
 ```yaml
 [dependencies]
-numpress = "1.0"
+numpress-rs = "1.0"
 ```
 
 # License
