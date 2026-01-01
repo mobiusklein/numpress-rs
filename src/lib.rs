@@ -779,10 +779,6 @@ pub fn decode_slof(data: &[u8], result: &mut Vec<f64>) -> Result<usize> {
         return Err(ErrorKind::CorruptInputData.into());
     }
 
-    if data_size < 12 {
-        return Err(ErrorKind::CorruptInputData.into());
-    }
-
     let scaling = unsafe { low_level::decode_fixed_point(data.as_ptr()) };
 
     result.reserve(data_size / 2);
