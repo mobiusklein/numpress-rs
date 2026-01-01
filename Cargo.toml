@@ -8,7 +8,7 @@ license = "BSD-3-Clause-Clear/Apache-2.0"
 name = "numpress-rs"
 readme = "README.md"
 repository = "https://github.com/mobiusklein/numpress-rs"
-version = "1.1.0"
+version = "1.1.1"
 
 edition = "2021"
 
